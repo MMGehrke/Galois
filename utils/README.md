@@ -59,3 +59,4 @@ See `secureStorage.example.js` for complete usage examples including:
 - Token refresh
 - Logout handling
 - Authenticated API requests
+

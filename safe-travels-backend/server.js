@@ -13,6 +13,7 @@ const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const { getSafetyInfo } = require('./data/zones');
 const { calculatePathRisk } = require('./data/pathfinding');
+const { createReport, getAllowedTags, ALLOWED_TAGS } = require('./data/safetyReports');
 
 // Initialize Express app
 const app = express();
@@ -345,6 +346,39 @@ const generalApiLimiter = rateLimit({
 });
 
 /**
+ * Rate Limiter for Safety Reports Endpoint
+ * 
+ * CRITICAL: Since reports are anonymous (no user authentication),
+ * we must rely on IP-based rate limiting to prevent abuse.
+ * 
+ * Configuration:
+ * - max: 3 reports per IP per hour
+ * - windowMs: 60 minutes (1 hour)
+ * 
+ * This prevents database flooding and spam while allowing legitimate reporting.
+ */
+const safetyReportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 reports per hour per IP
+  message: {
+    error: 'Too Many Reports',
+    message: 'You have submitted too many reports recently. Please try again later.',
+    retryAfter: '1 hour'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too Many Reports',
+      message: 'You have submitted too many reports recently. Please try again later.',
+      retryAfter: '1 hour',
+      limit: 3,
+      window: '1 hour'
+    });
+  }
+});
+
+/**
  * Request Timeout Middleware
  * 
  * Prevents requests from hanging indefinitely, protecting against DoS attacks.
@@ -402,6 +436,8 @@ app.get('/', (req, res) => {
       checkSafety: 'POST /api/check-safety',
       aiAdvisor: 'POST /api/ai-advisor',
       pathRisk: 'POST /api/path-risk',
+      safetyReports: 'POST /api/reports',
+      reportTags: 'GET /api/reports/tags',
       logout: 'POST /api/logout'
     }
   });
@@ -675,6 +711,157 @@ app.post(
 );
 
 /**
+ * Anonymous Safety Report Endpoint
+ * POST /api/reports
+ * 
+ * Allows users to submit anonymous safety reports from their current location.
+ * Reports are completely anonymous - no user IDs, emails, or IP addresses stored.
+ * 
+ * SECURITY:
+ * - IP-based rate limiting (3 reports per hour per IP)
+ * - Input validation and sanitization
+ * - XSS prevention (HTML stripping)
+ * - No user tracking
+ * 
+ * Request Body:
+ * {
+ *   "latitude": 43.6532,
+ *   "longitude": -79.3832,
+ *   "safetyScore": 3,
+ *   "tags": ["Harassment", "Police Presence"],
+ *   "comment": "Optional comment (max 280 chars)"
+ * }
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "message": "Report submitted anonymously",
+ *   "reportId": "report_1234567890_abc123"
+ * }
+ */
+app.post(
+  '/api/reports',
+  safetyReportLimiter, // IP-based rate limiting (3 per hour)
+  [
+    // Validate latitude
+    body('latitude')
+      .exists().withMessage('Latitude is required')
+      .isFloat({ min: -90, max: 90 })
+      .withMessage('Latitude must be a valid decimal number between -90 and 90'),
+    
+    // Validate longitude
+    body('longitude')
+      .exists().withMessage('Longitude is required')
+      .isFloat({ min: -180, max: 180 })
+      .withMessage('Longitude must be a valid decimal number between -180 and 180'),
+    
+    // Validate safety score
+    body('safetyScore')
+      .exists().withMessage('Safety score is required')
+      .isInt({ min: 1, max: 5 })
+      .withMessage('Safety score must be an integer between 1 and 5'),
+    
+    // Validate tags
+    body('tags')
+      .optional()
+      .isArray()
+      .withMessage('Tags must be an array'),
+    
+    body('tags.*')
+      .isString()
+      .withMessage('Each tag must be a string')
+      .isIn(ALLOWED_TAGS)
+      .withMessage(`Tags must be one of: ${ALLOWED_TAGS.join(', ')}`),
+    
+    // Validate and sanitize comment
+    body('comment')
+      .optional()
+      .isString()
+      .withMessage('Comment must be a string')
+      .trim()
+      .isLength({ max: 280 })
+      .withMessage('Comment must be 280 characters or less')
+      .customSanitizer((value) => {
+        // Strip HTML tags to prevent XSS
+        if (!value) return '';
+        return value.replace(/<[^>]*>/g, '').trim();
+      })
+  ],
+  (req, res) => {
+    // Check for validation errors
+    const errors = validationResult(req);
+    
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Invalid report data',
+        details: errors.array().map(err => ({
+          field: err.path,
+          message: err.msg
+        }))
+      });
+    }
+
+    try {
+      const { latitude, longitude, safetyScore, tags = [], comment = '' } = req.body;
+
+      // Create the report (completely anonymous - no user tracking)
+      const report = createReport({
+        latitude,
+        longitude,
+        safetyScore,
+        tags: Array.isArray(tags) ? tags : [],
+        comment: comment.trim()
+      });
+
+      // SECURITY: Log report creation but never log IP or user info
+      console.log('Anonymous safety report created:', {
+        reportId: report._id,
+        location: `[${latitude}, ${longitude}]`,
+        safetyScore,
+        tagCount: tags.length,
+        hasComment: comment.length > 0,
+        timestamp: report.timestamp
+        // Explicitly NOT logging: IP address, user ID, or any identifying info
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Report submitted anonymously',
+        reportId: report._id,
+        timestamp: report.timestamp
+      });
+    } catch (error) {
+      console.error('Error creating safety report:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: sanitizeErrorMessage(error, 500)
+      });
+    }
+  }
+);
+
+/**
+ * Get Allowed Tags Endpoint
+ * GET /api/reports/tags
+ * 
+ * Returns the list of allowed tags for safety reports.
+ * This helps the frontend display the correct tag options.
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "tags": ["Harassment", "Welcoming", "Police Presence", ...]
+ * }
+ */
+app.get('/api/reports/tags', (req, res) => {
+  res.status(200).json({
+    success: true,
+    tags: getAllowedTags()
+  });
+});
+
+/**
  * Logout Endpoint (Stub)
  * POST /api/logout
  * 
@@ -736,6 +923,8 @@ app.use((req, res) => {
       'POST /api/check-safety',
       'POST /api/ai-advisor',
       'POST /api/path-risk',
+      'POST /api/reports',
+      'GET /api/reports/tags',
       'POST /api/logout'
     ]
   });

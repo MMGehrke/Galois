@@ -14,14 +14,17 @@ import {
   ActivityIndicator,
   Text,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import MapView, { Polyline, Marker } from 'react-native-maps';
 import { checkPathRisk } from '../services/api';
+import SafetyReportModal from './SafetyReportModal';
 
 const MapScreen = () => {
   const [safetyScore, setSafetyScore] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [routeData, setRouteData] = useState(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   // Mock user's current location (Toronto, Canada)
   const userLocation = {
@@ -186,6 +189,21 @@ const MapScreen = () => {
           </View>
         )}
       </View>
+
+      {/* Safety Report FAB Button */}
+      <TouchableOpacity
+        style={styles.reportFAB}
+        onPress={() => setReportModalVisible(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.reportFABIcon}>📢</Text>
+      </TouchableOpacity>
+
+      {/* Safety Report Modal */}
+      <SafetyReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+      />
     </View>
   );
 };
@@ -266,6 +284,28 @@ const styles = StyleSheet.create({
     color: '#F44336',
     marginTop: 4,
     fontWeight: '500',
+  },
+  reportFAB: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+  reportFABIcon: {
+    fontSize: 24,
   },
 });
 

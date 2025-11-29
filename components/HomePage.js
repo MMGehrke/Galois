@@ -133,7 +133,9 @@ const HomePage = ({ navigation }) => {
       // We don't wait for this - it's fire and forget
       emergencyLogout().catch(error => {
         // Silently handle errors - this is fire and forget
-        console.log('Logout request sent (fire and forget)');
+        if (__DEV__) {
+          console.log('Logout request sent (fire and forget)');
+        }
       });
 
       // Step 3: Reset navigation to Login screen
@@ -172,7 +174,9 @@ const HomePage = ({ navigation }) => {
           style: 'cancel', // iOS: shows in red, Android: shows as cancel
           onPress: () => {
             // User cancelled - do nothing
-            console.log('Emergency wipe cancelled');
+            if (__DEV__) {
+              console.log('Emergency wipe cancelled');
+            }
           },
         },
         {
@@ -248,16 +252,27 @@ const HomePage = ({ navigation }) => {
         )}
       </View>
 
-      {/* Map Navigation Button */}
-      {navigation && (
-        <TouchableOpacity
-          style={styles.mapButton}
-          onPress={() => navigation.navigate('Map')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.mapButtonText}>🗺️ Safe Pathfinding</Text>
-        </TouchableOpacity>
-      )}
+              {/* Map Navigation Button */}
+              {navigation && (
+                <TouchableOpacity
+                  style={styles.mapButton}
+                  onPress={() => navigation.navigate('Map')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.mapButtonText}>🗺️ Safe Pathfinding</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Settings Button (for Camouflage) */}
+              {navigation && (
+                <TouchableOpacity
+                  style={styles.settingsButton}
+                  onPress={() => navigation.navigate('CamouflageSettings')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.settingsButtonText}>⚙️</Text>
+                </TouchableOpacity>
+              )}
 
       {/* Emergency Wipe / Panic Button (FAB) */}
       {navigation && (
@@ -447,6 +462,27 @@ const styles = StyleSheet.create({
   panicButtonIcon: {
     fontSize: 24,
     color: '#fff',
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  settingsButtonText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
 

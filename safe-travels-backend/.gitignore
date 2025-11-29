@@ -40,3 +40,6 @@ temp/
 # Build outputs
 dist/
 build/
+
+# Data files (generated at runtime)
+data/safetyReports.json

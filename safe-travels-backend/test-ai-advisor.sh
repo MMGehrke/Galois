@@ -77,3 +77,4 @@ echo "   - Found emails/phones"
 echo "   - AFTER anonymization (redacted data)"
 echo ""
 echo "Note: Install 'jq' for prettier JSON output: brew install jq"
+

@@ -355,3 +355,4 @@ if (typeof req.body.latitude !== 'number') { /* ... */ }
 ---
 
 **Remember:** Trust is not a security feature. Validate everything on the server! 🛡️
+

@@ -5,9 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import * as Font from 'expo-font';
 import { View, Text, ActivityIndicator } from 'react-native';
 
-import LoginPage from './components/LoginPage';
-import HomePage from './components/HomePage';
-import MapScreen from './components/MapScreen';
+// Stealth and Decoy components
+import StealthLayout from './components/StealthLayout';
+import DecoyMode from './components/DecoyMode';
+
+// Real app components (only accessible after stealth PIN)
+import MainApp from './components/MainApp';
 
 const Stack = createStackNavigator();
 
@@ -43,29 +46,39 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <StatusBar style="auto" />
-      <Stack.Navigator 
-        initialRouteName="Login"
+      <StatusBar style="light" />
+      <Stack.Navigator
+        initialRouteName="StealthLayout"
         screenOptions={{
           headerShown: false,
-          gestureEnabled: false
+          gestureEnabled: false,
+          animationEnabled: false, // Disable animations for security (faster transitions)
         }}
       >
-        <Stack.Screen name="Login" component={LoginPage} />
-        <Stack.Screen name="Home" component={HomePage} />
-        <Stack.Screen 
-          name="Map" 
-          component={MapScreen}
+        {/* Stealth Layout - Appears as Calculator (initial route) */}
+        <Stack.Screen
+          name="StealthLayout"
+          component={StealthLayout}
           options={{
-            headerShown: true,
-            title: 'Safe Pathfinding',
-            headerStyle: {
-              backgroundColor: '#007AFF',
-            },
-            headerTintColor: '#fff',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
+            headerShown: false,
+          }}
+        />
+
+        {/* Decoy Mode - Generic tourist info (after duress PIN) */}
+        <Stack.Screen
+          name="DecoyMode"
+          component={DecoyMode}
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        {/* Main App - Real SafeTravels (after stealth PIN) */}
+        <Stack.Screen
+          name="MainApp"
+          component={MainApp}
+          options={{
+            headerShown: false,
           }}
         />
       </Stack.Navigator>

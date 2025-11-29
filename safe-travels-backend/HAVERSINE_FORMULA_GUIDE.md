@@ -340,3 +340,4 @@ const distance = haversineDistance(lat1, lon1, lat2, lon2);
 ---
 
 **Remember:** When calculating distances on Earth, always use spherical geometry (like Haversine), not flat geometry! 🌍
+

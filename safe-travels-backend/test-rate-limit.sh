@@ -81,3 +81,4 @@ echo ""
 echo "✨ Testing complete!"
 echo ""
 echo "Note: Install 'jq' for prettier JSON output: brew install jq"
+

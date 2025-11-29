@@ -88,14 +88,23 @@ const apiRequest = async (endpoint, options = {}) => {
     
     // Check if response is ok (status 200-299)
     if (!response.ok) {
-      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      // Create error with status code for rate limit detection
+      const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      error.data = data;
+      throw error;
     }
     
     return data;
   } catch (error) {
     // Handle network errors, timeouts, etc.
-    if (error.message.includes('Network request failed')) {
+    if (error.message && error.message.includes('Network request failed')) {
       throw new Error('Unable to connect to server. Make sure the backend is running.');
+    }
+    
+    // Preserve status code for rate limit detection
+    if (error.status) {
+      throw error;
     }
     
     // Re-throw other errors
@@ -177,6 +186,44 @@ export const logApiConfig = () => {
   console.log(`   Platform: ${Platform.OS}`);
   console.log(`   Base URL: ${API_BASE_URL}`);
   console.log(`   Environment: ${__DEV__ ? 'Development' : 'Production'}`);
+};
+
+/**
+ * Submit Anonymous Safety Report
+ * POST /api/reports
+ * 
+ * Submits an anonymous safety report from the user's current location.
+ * No user identification is sent - completely anonymous.
+ * 
+ * @param {number} latitude - Latitude coordinate (-90 to 90)
+ * @param {number} longitude - Longitude coordinate (-180 to 180)
+ * @param {number} safetyScore - Safety score (1-5)
+ * @param {string[]} tags - Array of tag strings
+ * @param {string} comment - Optional comment (max 280 chars)
+ * @returns {Promise<Object>} Success response with report ID
+ * @throws {Error} If validation fails, rate limit exceeded, or server error
+ */
+export const submitSafetyReport = async (latitude, longitude, safetyScore, tags = [], comment = '') => {
+  return apiRequest('/api/reports', {
+    method: 'POST',
+    body: {
+      latitude,
+      longitude,
+      safetyScore,
+      tags,
+      comment
+    },
+  });
+};
+
+/**
+ * Get Allowed Tags for Safety Reports
+ * GET /api/reports/tags
+ * 
+ * @returns {Promise<Object>} List of allowed tags
+ */
+export const getReportTags = async () => {
+  return apiRequest('/api/reports/tags');
 };
 
 /**

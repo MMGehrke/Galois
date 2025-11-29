@@ -428,3 +428,4 @@ try {
    - Cache data
 
 **Remember:** If data is sensitive, use SecureStore. If it's not sensitive, AsyncStorage is fine. When in doubt, use SecureStore! 🔒
+
